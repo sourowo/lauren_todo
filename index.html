@@ -77,6 +77,12 @@ h3 small{color:var(--muted);font-size:.85rem}
 
 .datenav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
 .datenav .big{font-size:1.8rem;margin-right:auto;line-height:1.3}
+@media (max-width:560px){
+  .datenav{gap:6px}
+  .datenav .big{flex-basis:100%;font-size:1.5rem;margin-right:0}
+  .datenav input[type=date]{flex:1 1 0;min-width:0;width:auto;padding:6px 8px;text-align:center}
+  .datenav .btn{flex:none;padding:6px 12px}
+}
 .btn{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;cursor:pointer;font-size:.9rem;white-space:nowrap}
 .btn:hover{border-color:var(--muted)}
 .btn:disabled{opacity:.4;cursor:default}
@@ -1381,17 +1387,17 @@ renderAll();
 <!-- ============ Firebase 雲端同步 ============ -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 /* ▼▼▼ 把 Firebase 主控台「專案設定 > 你的應用程式 > SDK 設定」裡的內容貼到這裡 ▼▼▼ */
 const firebaseConfig = {
-   apiKey: "AIzaSyDgOAfRgw_C_a44qPegXSNGxM-hNqrVbvU",
-   authDomain: "lauren-works.firebaseapp.com",
-   projectId: "lauren-works",
-   storageBucket: "lauren-works.firebasestorage.app",
-   messagingSenderId: "485808286353",
-   appId: "1:485808286353:web:33219da2bbce40bb226d30"
+  apiKey: "AIzaSyDgOAfRgw_C_a44qPegXSNGxM-hNqrVbvU",
+  authDomain: "lauren-works.firebaseapp.com",
+  projectId: "lauren-works",
+  storageBucket: "lauren-works.firebasestorage.app",
+  messagingSenderId: "485808286353",
+  appId: "1:485808286353:web:33219da2bbce40bb226d30"
 };
 /* ▲▲▲ 以上 ▲▲▲ */
 
@@ -1412,17 +1418,19 @@ if(!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("填入")){
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
 
+  /* GitHub Pages 和 Firebase 登入頁不同網域，手機瀏覽器會擋「跳轉式登入」，所以只用彈出視窗登入 */
+  const inApp = /Line\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(navigator.userAgent);
+  function loginHelp(msg){ acct.textContent=msg; setSync(msg); showTab("settings"); }
   async function login(){
+    if(inApp){ loginHelp("LINE 等 App 內建的瀏覽器無法登入，請點右下角「⋯」選「用預設瀏覽器開啟」，或把網址貼到 Safari。"); return; }
     try{ await signInWithPopup(auth, provider); }
     catch(e){
-      if(e.code==="auth/popup-blocked" || e.code==="auth/operation-not-supported-in-this-environment"){ await signInWithRedirect(auth, provider); }
-      else if(e.code!=="auth/popup-closed-by-user" && e.code!=="auth/cancelled-popup-request"){
-        setSync("登入失敗："+e.code);
-        if(e.code==="auth/unauthorized-domain") acct.textContent="這個網址還沒加入 Firebase 的「已授權網域」";
-      }
+      if(e.code==="auth/popup-closed-by-user" || e.code==="auth/cancelled-popup-request") return;
+      if(e.code==="auth/popup-blocked") loginHelp("登入視窗被瀏覽器擋住了，請允許此網站的彈出式視窗後再按一次登入。");
+      else if(e.code==="auth/unauthorized-domain") loginHelp("這個網址還沒加入 Firebase 的「已授權網域」。");
+      else loginHelp("登入失敗（"+e.code+"）。iPhone 請改用 Safari 開啟這個網址再登入。");
     }
   }
-  getRedirectResult(auth).catch(()=>{});
   loginBtn.addEventListener("click", login);
   authBtn.addEventListener("click", login);
   logoutBtn.addEventListener("click", ()=>{
